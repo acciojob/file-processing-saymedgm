@@ -12,41 +12,65 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class FileProcessor {
-	
-	    private List<String> fileNames;
-	    public ConcurrentHashMap<String, Integer> wordCounts = new ConcurrentHashMap<>();
 
-	    public FileProcessor(List<String> fileNames) {
-	        // your code goes here
-	    }
+	private List<String> fileNames;
+	public ConcurrentHashMap<String, Integer> wordCounts = new ConcurrentHashMap<>();
 
-	    public void processFiles() {
-	       // your code goes here
-	    }
+	public FileProcessor(List<String> fileNames) {
+		this.fileNames = fileNames;
+	}
 
-	    public void displayWordCounts() {
-	        // your code goes here
-	    }
-	    
+	public void processFiles() {
+		ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
-	    private class FileProcessorTask implements Runnable {
-	        private String fileName;
+		for (String fileName : fileNames) {
+			executor.execute(new FileProcessorTask(fileName));
+		}
 
-	        public FileProcessorTask(String fileName) {
-	            // your code goes here
-	        }
+		executor.shutdown();
+		try {
+			executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
 
-	        public void run() {
-	            // your code goes here
-	        }
-	    }
+	public void displayWordCounts() {
+		wordCounts.forEach((fileName, count) -> System.out.println(fileName + ": " + count + " words"));
+	}
 
-	    public static void main(String[] args) {
-	    	List<String> fileNames = Arrays.asList("file1", "file2", "file3");
-	        FileProcessor fileProcessor = new FileProcessor(fileNames);
-	        fileProcessor.processFiles();
-	        fileProcessor.displayWordCounts();
-	    }
-	
+
+	private class FileProcessorTask implements Runnable {
+		private String fileName;
+
+		public FileProcessorTask(String fileName) {
+			this.fileName = fileName;
+		}
+
+		@Override
+		public void run() {
+			int wordCount = 0;
+			try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
+				String line;
+				while ((line = br.readLine()) != null) {
+					String[] words = line.trim().split("\\s+"); // Adjust regex if needed
+					wordCount += words.length;
+				}
+			} catch (IOException e) {
+				System.err.println("Error processing file: " + fileName);
+				e.printStackTrace();
+			}
+
+			wordCounts.put(fileName, wordCount); // Thread-safe update
+		}
+	}
+
+	public static void main(String[] args) {
+		List<String> fileNames = Arrays.asList("file1", "file2", "file3");
+		FileProcessor fileProcessor = new FileProcessor(fileNames);
+		fileProcessor.processFiles();
+		fileProcessor.displayWordCounts();
+	}
+
 
 }
